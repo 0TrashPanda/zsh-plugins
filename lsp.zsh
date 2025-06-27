@@ -30,7 +30,7 @@ lsp() {
 
   for file in "${files[@]}"; do
     [[ -e "$file" ]] || continue
-    path=$(realpath "$file")
-    (( show_full )) && echo "$path" || echo "${path/#$HOME/~}"
+    filepath=$(realpath "$file")
+    (( show_full )) && echo "$filepath" || echo "${filepath/#$HOME/~}"
   done
 }
