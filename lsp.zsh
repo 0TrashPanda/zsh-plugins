@@ -3,13 +3,12 @@ lsp() {
   local show_all=0
 
   usage() {
-    echo "Usage: lsp [-f] [-a] [-h]"
+    echo "Usage: lsp [-f] [-a] [-h] [path ...]"
     echo "  -f  Show full absolute paths"
     echo "  -a  Include hidden files"
-    echo "  -h  Show this help message"
+    echo "  -h  Show help"
   }
 
-  # Parse flags
   while getopts ":fah" opt; do
     case $opt in
       f) show_full=1 ;;
@@ -18,19 +17,37 @@ lsp() {
       *) usage >&2; return 1 ;;
     esac
   done
-
   shift $((OPTIND - 1))
 
-  # Choose file pattern
-  if (( show_all )); then
-    files=(*(.D))  # includes hidden files (but not . or ..)
-  else
-    files=(*)      # visible files only
-  fi
+  # If no path args, use current dir
+  [ $# -eq 0 ] && set -- .
 
-  for file in "${files[@]}"; do
-    [[ -e "$file" ]] || continue
-    filepath=$(realpath "$file")
-    (( show_full )) && echo "$filepath" || echo "${filepath/#$HOME/~}"
+  for target in "$@"; do
+    if [ -d "$target" ]; then
+      # Use globbing to collect files
+      if [ "$show_all" -eq 1 ]; then
+        files=$(find "$target" -maxdepth 1 -mindepth 1)
+      else
+        files=$(find "$target" -maxdepth 1 -mindepth 1 ! -name '.*')
+      fi
+    elif [ -e "$target" ]; then
+      files="$target"
+    else
+      echo "lsp: $target: No such file or directory" >&2
+      continue
+    fi
+
+    while IFS= read -r file; do
+      [ -e "$file" ] || continue
+      fullpath=$(realpath "$file")
+      if [ "$show_full" -eq 1 ]; then
+        echo "$fullpath"
+      else
+        case "$fullpath" in
+          "$HOME"/*) echo "~/${fullpath#"$HOME"/}" ;;
+          *)         echo "$fullpath" ;;
+        esac
+      fi
+    done <<< "$files"
   done
 }
